@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pac-Man con Niveles</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: black;
+            flex-direction: column;
+        }
+        #gameCanvas {
+            border: 2px solid yellow;
+            background-color: black;
+        }
+        #gameOver, #levelUp {
+            color: white;
+            font-size: 24px;
+            margin-top: 20px;
+            display: none;
+        }
+        #restartButton {
+            display: none;
+            margin-top: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: yellow;
+            border: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="400" height="400"></canvas>
+    <div id="gameOver">Game Over!</div>
+    <div id="levelUp">Nivel Completo!</div>
+    <button id="restartButton">Reiniciar</button>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const gameOverElement = document.getElementById('gameOver');
+        const levelUpElement = document.getElementById('levelUp');
+        const restartButton = document.getElementById('restartButton');
+
+        let pacman, ghosts, points, score, gameOver, level;
+
+        function initGame() {
+            pacman = {
+                x: 50,
+                y: 50,
+                size: 20,
+                direction: { x: 0, y: 0 },
+            };
+
+            ghosts = [
+                { x: 300, y: 300, size: 20, speed: 1 },
+                { x: 100, y: 100, size: 20, speed: 1 },
+                { x: 200, y: 50, size: 20, speed: 1 },
+            ];
+
+            points = [];
+            score = 0;
+            level = 1;
+            gameOver = false;
+
+            generatePoints(20);
+            gameOverElement.style.display = 'none';
+            levelUpElement.style.display = 'none';
+            restartButton.style.display = 'none';
+
+            gameLoop();
+        }
+
+        function generatePoints(numPoints) {
+            points = [];
+            for (let i = 0; i < numPoints; i++) {
+                points.push({
+                    x: Math.random() * (canvas.width - 5),
+                    y: Math.random() * (canvas.height - 5),
+                });
+            }
+        }
+
+        function drawPacman() {
+            ctx.beginPath();
+            ctx.arc(pacman.x, pacman.y, pacman.size, 0.2 * Math.PI, 1.8 * Math.PI);
+            ctx.lineTo(pacman.x, pacman.y);
+            ctx.fillStyle = 'yellow';
+            ctx.fill();
+            ctx.closePath();
+        }
+
+        function drawGhost(ghost) {
+            ctx.beginPath();
+            ctx.arc(ghost.x, ghost.y, ghost.size, 0, 2 * Math.PI);
+            ctx.fillStyle = 'red';
+            ctx.fill();
+            ctx.closePath();
+        }
+
+        function drawPoints() {
+            ctx.fillStyle = 'white';
+            points.forEach(point => {
+                ctx.beginPath();
+                ctx.arc(point.x, point.y, 5, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.closePath();
+            });
+        }
+
+        function updateGhosts() {
+            ghosts.forEach(ghost => {
+                const dx = pacman.x - ghost.x;
+                const dy = pacman.y - ghost.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                // Mover el fantasma hacia Pac-Man
+                if (distance > 0) {
+                    ghost.x += (dx / distance) * ghost.speed;
+                    ghost.y += (dy / distance) * ghost.speed;
+                }
+
+                // Comprobar colisión con Pac-Man
+                if (distance < pacman.size + ghost.size) {
+                    gameOver = true;
+                }
+            });
+        }
+
+        function update() {
+            if (gameOver) return;
+
+            pacman.x += pacman.direction.x;
+            pacman.y += pacman.direction.y;
+
+            // Colisiones con los bordes
+            if (pacman.x < pacman.size) pacman.x = pacman.size;
+            if (pacman.x > canvas.width - pacman.size) pacman.x = canvas.width - pacman.size;
+            if (pacman.y < pacman.size) pacman.y = pacman.size;
+            if (pacman.y > canvas.height - pacman.size) pacman.y = canvas.height - pacman.size;
+
+            // Comprobar colisiones con los puntos
+            for (let i = points.length - 1; i >= 0; i--) {
+                const point = points[i];
+                const dx = pacman.x - point.x;
+                const dy = pacman.y - point.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance < pacman.size + 5) {
+                    points.splice(i, 1); // Eliminar el punto recogido
+                    score++;
+                }
+            }
+
+            // Comprobar si todos los puntos han sido recogidos
+            if (points.length === 0) {
+                levelUp();
+            }
+        }
+
+        function levelUp() {
+            level++;
+            levelUpElement.style.display = 'block';
+            setTimeout(() => {
+                levelUpElement.style.display = 'none';
+                generatePoints(20 + (level - 1) * 5); // Aumentar la cantidad de puntos
+                ghosts.forEach(ghost => ghost.speed += 0.5); // Aumentar la velocidad de los fantasmas
+            }, 1000);
+        }
+
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function gameLoop() {
+            clearCanvas();
+            drawPacman();
+            ghosts.forEach(drawGhost);
+            drawPoints();
+            updateGhosts();
+            update();
+
+            // Mostrar puntuación y nivel
+            ctx.fillStyle = 'white';
+            ctx.font = '16px Arial';
+            ctx.fillText('Puntuación: ' + score, 10, 20);
+            ctx.fillText('Nivel: ' + level, 10, 40);
+
+            if (gameOver) {
+                gameOverElement.style.display = 'block';
+                restartButton.style.display = 'block';
+                return;
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        document.addEventListener('keydown', (e) => {
+            switch (e.key) {
+                case 'ArrowUp':
+                    pacman.direction = { x: 0, y: -2 };
+                    break;
+                case 'ArrowDown':
+                    pacman.direction = { x: 0, y: 2 };
+                    break;
+                case 'ArrowLeft':
+                    pacman.direction = { x: -2, y: 0 };
+                    break;
+                case 'ArrowRight':
+                    pacman.direction = { x: 2, y: 0 };
+                    break;
+            }
+        });
+
+        restartButton.addEventListener('click', initGame); // Reiniciar juego al hacer clic
+
+        initGame(); // Iniciar el juego
+    </script>
+</body>
+</html>
